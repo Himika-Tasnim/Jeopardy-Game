@@ -1,3 +1,6 @@
+// ✅ script.js
+
+// Define categories (these stay in frontend)
 const categories = [
   "Market Systems & Livelihood Goals",
   "Stakeholder & Ecosystem Mapping",
@@ -9,12 +12,14 @@ const categories = [
   "Monitoring & Adaptive Management"
 ];
 
-import questions from './questionData.js';
+// Questions will be fetched from backend
+let questions = [];
 
 let currentIndex = null;
 let score = 0;
 let answerSubmitted = false;
 
+// DOM elements
 const board = document.getElementById("game-board");
 const questionScreen = document.getElementById("question-screen");
 const questionText = document.getElementById("question-text");
@@ -34,11 +39,23 @@ const modalFeedback = document.getElementById("modal-feedback");
 const modalExit = document.getElementById("modal-exit");
 const modalNext = document.getElementById("modal-next");
 
+// ✅ Fetch questions from backend API
+async function loadQuestions() {
+  try {
+    const res = await fetch("http://localhost:5000/api/questions"); // change to your deployed URL later
+    questions = await res.json();
+    buildBoard();
+  } catch (err) {
+    console.error("Failed to load questions:", err);
+    alert("Error loading questions from server. Please check your backend.");
+  }
+}
+
 function isLastQuestion(index) {
   return questions.every((q, i) => i === index || q.answered);
 }
 
-// ✅ New helper function to enforce rules
+// ✅ Helper to enforce unlock rules
 function canOpenQuestion(q) {
   const row = q.points / 100;
   const currentCol = categories.indexOf(q.category);
@@ -110,7 +127,6 @@ function buildBoard() {
 function openQuestion(index) {
   const q = questions[index];
 
-  // ✅ enforce rules here too
   if (!canOpenQuestion(q)) {
     alert("⚠️ Please complete the previous questions first.");
     return;
@@ -218,7 +234,7 @@ function continueToNextQuestion() {
   const currentCatIndex = categories.indexOf(currentQ.category);
   const currentRow = currentQ.points / 100;
 
-  // look for next in same category
+  // next in same category
   for (let i = currentRow + 1; i <= 5; i++) {
     const nextQ = questions.find(q =>
       q.category === currentQ.category && q.points === i * 100 && !q.answered
@@ -228,7 +244,7 @@ function continueToNextQuestion() {
     }
   }
 
-  // otherwise go to next category
+  // otherwise next category
   for (let cat = currentCatIndex + 1; cat < categories.length; cat++) {
     for (let row = 1; row <= 5; row++) {
       const nextQ = questions.find(q =>
@@ -250,6 +266,7 @@ function exitToBoard() {
   buildBoard();
 }
 
+// Modal button logic
 modalNext.onclick = () => {
   const q = questions[currentIndex];
   const action = modal.dataset.action;
@@ -293,4 +310,5 @@ modalExit.addEventListener("click", () => {
   exitToBoard();
 });
 
-buildBoard();
+// ✅ Load questions on page load
+loadQuestions();
