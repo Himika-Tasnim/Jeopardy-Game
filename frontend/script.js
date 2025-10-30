@@ -72,19 +72,33 @@ function isLastQuestion(index) {
 function canOpenQuestion(q) {
   const row = q.points / 100;
   const currentCol = categories.indexOf(q.category);
-
+  
+  // If not first row, check if previous question in same category is completed
   if (row > 1) {
     const prevQ = questions.find(
       prev => prev.category === q.category && prev.points === (row - 1) * 100
     );
-    if (prevQ && !prevQ.answered) return false;
+    if (!prevQ || !prevQ.answered) return false;
   }
 
-  for (let col = 0; col < currentCol; col++) {
-    const unfinished = questions.some(
-      prev => prev.category === categories[col] && !prev.answered
-    );
-    if (unfinished) return false;
+  // If not first column, all questions in previous columns must be completed
+  if (currentCol > 0) {
+    for (let col = 0; col < currentCol; col++) {
+      const allAnswered = questions.filter(prev => 
+        prev.category === categories[col]
+      ).every(prev => prev.answered);
+      
+      if (!allAnswered) return false;
+    }
+  }
+
+  // Within the current column, all previous questions must be answered
+  const currentColQuestions = questions.filter(
+    prev => prev.category === q.category && prev.points < q.points
+  );
+  
+  if (!currentColQuestions.every(prev => prev.answered)) {
+    return false;
   }
 
   return true;
@@ -123,10 +137,20 @@ function buildBoard() {
           tile.style.backgroundColor = "red";
         }
       } else {
+        const isAvailable = canOpenQuestion(q);
         tile.innerText = q.points;
+        tile.style.opacity = isAvailable ? "1" : "0.5";
+        tile.style.cursor = isAvailable ? "pointer" : "not-allowed";
+        
+        if (isAvailable) {
+          tile.classList.add("available");
+        } else {
+          tile.classList.add("locked");
+        }
+
         tile.onclick = () => {
-          if (!canOpenQuestion(q)) {
-            alert("⚠️ Please complete the previous questions first.");
+          if (!isAvailable) {
+            alert("⚠️ This question is locked. Complete previous questions first!");
             return;
           }
           openQuestion(questions.indexOf(q));

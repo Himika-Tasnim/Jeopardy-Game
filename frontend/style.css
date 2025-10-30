@@ -53,12 +53,37 @@ h1 {
 
 
 
-.tile:hover:not(.disabled):not(.header) {
+.tile:hover:not(.disabled):not(.header):not(.locked) {
   transform: translateY(-5px);
   box-shadow: 0 12px 20px rgba(0,0,0,0.5);
 }
 
+.tile.locked {
+  background: linear-gradient(to bottom, #34495e, #2c3e50);
+  color: rgba(255, 255, 255, 0.5);
+  position: relative;
+}
 
+.tile.locked::after {
+  content: "🔒";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 0.8rem;
+}
+
+.tile.available {
+  background: linear-gradient(to bottom, #1abc9c, #16a085);
+  position: relative;
+}
+
+.tile.available::after {
+  content: "👆";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  font-size: 0.8rem;
+}
 
 .tile.disabled {
   background-color: #555;
