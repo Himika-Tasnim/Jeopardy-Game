@@ -65,8 +65,12 @@ async function loadQuestions() {
 // ------------------------
 // Helpers
 // ------------------------
+function isQuestionCompleted(question) {
+  return question.answered || question.revealed;
+}
+
 function isLastQuestion(index) {
-  return questions.every((q, i) => i === index || q.answered);
+  return questions.every((q, i) => i === index || isQuestionCompleted(q));
 }
 
 function canOpenQuestion(q) {
@@ -335,9 +339,9 @@ function updateScore(points) { score += points; scoreDiv.innerText = `Score: ${s
 // ------------------------
 function continueToNextQuestion() {
   const currentQ = questions[currentIndex];
-  
-  // Check if current question is not answered or revealed
-  if (!currentQ.answered && !currentQ.revealed) {
+
+  // Use shared helper to check completion (answered OR revealed)
+  if (!isQuestionCompleted(currentQ)) {
     alert("⚠️ Please answer or reveal the current question before moving to the next one!");
     return;
   }
@@ -347,7 +351,7 @@ function continueToNextQuestion() {
 
   for (let i = currentRow + 1; i <= 5; i++) {
     const nextQ = questions.find(q =>
-      q.category === currentQ.category && q.points === i * 100 && !q.answered
+      q.category === currentQ.category && q.points === i * 100 && !isQuestionCompleted(q)
     );
     if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
   }
@@ -355,13 +359,13 @@ function continueToNextQuestion() {
   for (let cat = currentCatIndex + 1; cat < categories.length; cat++) {
     for (let row = 1; row <= 5; row++) {
       const nextQ = questions.find(q =>
-        q.category === categories[cat] && q.points === row * 100 && !q.answered
+        q.category === categories[cat] && q.points === row * 100 && !isQuestionCompleted(q)
       );
       if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
     }
   }
 
-  alert("No more unanswered questions!");
+  alert("No more uncompleted questions!");
   exitToBoard();
 }
 
