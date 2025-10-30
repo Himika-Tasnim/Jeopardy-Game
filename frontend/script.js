@@ -83,16 +83,29 @@ function canOpenQuestion(q) {
   }
   
   // For other categories
-  // 1. All previous categories must be completely finished
-  for (let col = 0; col < currentCol; col++) {
-    const allAnswered = questions.filter(prev => 
-      prev.category === categories[col]
-    ).every(prev => prev.answered);
+  // Check if this is the first question (100 points) in a new column
+  if (q.points === 100) {
+    // Check if previous column is completely finished
+    const prevColQuestions = questions.filter(
+      prev => prev.category === categories[currentCol - 1]
+    );
+    const isPrevColComplete = prevColQuestions.every(prev => prev.answered);
     
-    if (!allAnswered) return false;
+    // If previous column is complete, this 100-point question should be unlocked
+    if (isPrevColComplete) {
+      // Make sure all columns before the previous one are also complete
+      for (let col = 0; col < currentCol - 1; col++) {
+        const allAnswered = questions.filter(prev => 
+          prev.category === categories[col]
+        ).every(prev => prev.answered);
+        if (!allAnswered) return false;
+      }
+      return true;
+    }
+    return false;
   }
   
-  // 2. In current category, must progress sequentially
+  // For other questions in current category, must progress sequentially
   const currentCategoryQuestions = questions.filter(
     prev => prev.category === q.category
   ).sort((a, b) => a.points - b.points);
@@ -168,16 +181,34 @@ function buildBoard() {
 
         tile.onclick = () => {
           if (!isUnlocked) {
-            // Show different messages based on whether the category is available
             const currentCol = categories.indexOf(q.category);
-            const prevCategoriesComplete = categories.slice(0, currentCol).every(cat =>
-              questions.filter(qq => qq.category === cat).every(qq => qq.answered)
-            );
+            const prevCol = currentCol - 1;
             
-            if (!prevCategoriesComplete) {
-              alert("⚠️ Complete previous categories first!");
+            if (q.points === 100) {
+              // For first question in a category
+              if (prevCol >= 0) {
+                const isPrevColComplete = questions.filter(
+                  qq => qq.category === categories[prevCol]
+                ).every(qq => qq.answered);
+                
+                if (!isPrevColComplete) {
+                  alert(`⚠️ Complete all questions in "${categories[prevCol]}" first!`);
+                } else {
+                  // If some earlier category is incomplete
+                  for (let col = 0; col < prevCol; col++) {
+                    const isComplete = questions.filter(
+                      qq => qq.category === categories[col]
+                    ).every(qq => qq.answered);
+                    if (!isComplete) {
+                      alert(`⚠️ Complete all questions in "${categories[col]}" first!`);
+                      return;
+                    }
+                  }
+                }
+              }
             } else {
-              alert("⚠️ Complete questions in order within the category!");
+              // For other questions in the category
+              alert("⚠️ Complete questions in order from 100 to 500!");
             }
             return;
           }
