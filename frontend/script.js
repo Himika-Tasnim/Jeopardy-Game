@@ -73,7 +73,7 @@ function canOpenQuestion(q) {
   const row = q.points / 100;
   const currentCol = categories.indexOf(q.category);
 
-  // Must complete previous row in same column
+  // 1️⃣ Must complete previous row in same column (for rows > 1)
   if (row > 1) {
     const prevQ = questions.find(
       prev => prev.category === q.category && prev.points === (row - 1) * 100
@@ -81,16 +81,19 @@ function canOpenQuestion(q) {
     if (prevQ && !prevQ.answered) return false;
   }
 
-  // Must complete all questions in previous columns
-  for (let col = 0; col < currentCol; col++) {
-    const unfinished = questions.some(
-      prev => prev.category === categories[col] && !prev.answered
-    );
-    if (unfinished) return false;
+  // 2️⃣ For row 1, must complete all previous columns
+  if (row === 1) {
+    for (let col = 0; col < currentCol; col++) {
+      const unfinished = questions.some(
+        prev => prev.category === categories[col] && !prev.answered
+      );
+      if (unfinished) return false;
+    }
   }
 
   return true;
 }
+
 
 // ------------------------
 // Build Board
