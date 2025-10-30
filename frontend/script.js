@@ -1,11 +1,11 @@
-// ------------------------
-// Backend URL (Render)
-// ------------------------
+// ========================
+// Backend URL
+// ========================
 const BACKEND_URL = "https://jeopardy-game-lnje.onrender.com";
 
-// ------------------------
+// ========================
 // Categories
-// ------------------------
+// ========================
 const categories = [
   "Market Systems & Livelihood Goals",
   "Stakeholder & Ecosystem Mapping",
@@ -17,27 +17,25 @@ const categories = [
   "Monitoring & Adaptive Management"
 ];
 
-// ------------------------
+// ========================
 // Game state
-// ------------------------
+// ========================
 let questions = [];
 let currentIndex = null;
 let score = 0;
 let answerSubmitted = false;
 
-// ------------------------
+// ========================
 // DOM elements
-// ------------------------
+// ========================
 const board = document.getElementById("game-board");
 const questionScreen = document.getElementById("question-screen");
 const questionText = document.getElementById("question-text");
 const choicesDiv = document.getElementById("choices");
 const feedback = document.getElementById("feedback");
-const answerArea = document.getElementById("answer-area");
 const revealBtn = document.getElementById("reveal-answer-btn");
 const giveAnswerBtn = document.getElementById("give-answer-btn");
 const exitBtn = document.getElementById("exit-btn");
-const submitAnswerBtn = document.getElementById("submit-answer-btn");
 const scoreDiv = document.getElementById("score");
 
 const modal = document.getElementById("modal");
@@ -47,114 +45,48 @@ const modalFeedback = document.getElementById("modal-feedback");
 const modalExit = document.getElementById("modal-exit");
 const modalNext = document.getElementById("modal-next");
 
-// ------------------------
-// Fetch questions from backend
-// ------------------------
-async function loadQuestions() {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/questions`, { method: "GET", mode: "cors" });
-    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    questions = await res.json();
-    buildBoard();
-  } catch (err) {
-    console.error("Failed to load questions:", err);
-    alert("Error loading questions from server. Please check your backend.");
-  }
-}
-
-// ------------------------
+// ========================
 // Helpers
-// ------------------------
-function isQuestionCompleted(question) {
-  return question.answered || question.revealed;
+// ========================
+const isCompleted = q => q.answered || q.revealed;
+
+function canOpenQuestion(q) {
+  const colIndex = categories.indexOf(q.category);
+
+  // First column, first question always unlocked
+  if (colIndex === 0 && q.points === 100) return true;
+
+  // Previous column must be fully completed
+  if (colIndex > 0) {
+    const prevColQuestions = questions.filter(q => q.category === categories[colIndex - 1]);
+    if (!prevColQuestions.every(isCompleted)) return false;
+  }
+
+  // Within column, must answer sequentially
+  const currentColQuestions = questions
+    .filter(qq => qq.category === q.category)
+    .sort((a, b) => a.points - b.points);
+
+  const firstUncompleted = currentColQuestions.find(qq => !isCompleted(qq));
+  return firstUncompleted && firstUncompleted.id === q.id;
 }
 
 function isLastQuestion(index) {
-  return questions.every((q, i) => i === index || isQuestionCompleted(q));
+  return questions.every((q, i) => i === index || isCompleted(q));
 }
 
-function canOpenQuestion(q) {
-  const row = q.points / 100;
-  const currentCol = categories.indexOf(q.category);
-  
-  // Helper function to check if a question is completed (either answered or revealed)
-  const isQuestionCompleted = (question) => question.answered || question.revealed;
-  
-  // If this is the first category (column)
-  if (currentCol === 0) {
-    // Only allow if all previous questions in this category are completed
-    const previousQuestions = questions.filter(
-      prev => prev.category === q.category && prev.points < q.points
-    );
-    return previousQuestions.every(isQuestionCompleted);
-  }
-  
-  // For other categories
-  // Check if this is the first question (100 points) in a new column
-  if (q.points === 100) {
-    // Check if previous column is completely finished
-    const prevColQuestions = questions.filter(
-      prev => prev.category === categories[currentCol - 1]
-    );
-    const isPrevColComplete = prevColQuestions.every(isQuestionCompleted);
-    
-    // If previous column is complete, this 100-point question should be unlocked
-    if (isPrevColComplete) {
-      // Make sure all columns before the previous one are also complete
-      for (let col = 0; col < currentCol - 1; col++) {
-        const allCompleted = questions.filter(prev => 
-          prev.category === categories[col]
-        ).every(isQuestionCompleted);
-        if (!allCompleted) return false;
-      }
-      return true;
-    }
-    return false;
-  }
-  
-  // For other questions in current category, must progress sequentially
-  const currentCategoryQuestions = questions.filter(
-    prev => prev.category === q.category
-  ).sort((a, b) => a.points - b.points);
-  
-  // Find the first uncompleted question in this category
-  const nextUncompleted = currentCategoryQuestions.find(prev => !isQuestionCompleted(prev));
-  
-  // Only allow if this is the first uncompleted question in the category
-  return nextUncompleted && nextUncompleted.id === q.id;
-}
-
-// ------------------------
+// ========================
 // Build Board
-// ------------------------
+// ========================
 function buildBoard() {
   board.innerHTML = "";
+
   categories.forEach(cat => {
     const header = document.createElement("div");
     header.className = "tile header";
     header.innerText = cat;
     board.appendChild(header);
   });
-
-  // Helper function to check if a question is completed (either answered or revealed)
-  const isQuestionCompleted = (question) => question.answered || question.revealed;
-
-  // Find the current unlocked question (only one should be unlocked at a time)
-  let unlockedQuestion = null;
-  for (let col = 0; col < categories.length; col++) {
-    if (unlockedQuestion) break;
-    const categoryQuestions = questions
-      .filter(q => q.category === categories[col])
-      .sort((a, b) => a.points - b.points);
-    
-    // Find first uncompleted question in this category
-    unlockedQuestion = categoryQuestions.find(q => !isQuestionCompleted(q));
-    
-    // If all questions in this category are completed, move to next category
-    if (!unlockedQuestion && !categoryQuestions.every(isQuestionCompleted)) {
-      break; // Stop if we find a category that's not complete
-    }
-  }
 
   for (let row = 1; row <= 5; row++) {
     for (let col = 0; col < categories.length; col++) {
@@ -177,52 +109,15 @@ function buildBoard() {
           tile.style.backgroundColor = "red";
         }
       } else {
-        const isUnlocked = unlockedQuestion && q.id === unlockedQuestion.id;
+        const unlocked = canOpenQuestion(q);
         tile.innerText = q.points;
-        tile.style.opacity = isUnlocked ? "1" : "0.5";
-        tile.style.cursor = isUnlocked ? "pointer" : "not-allowed";
-        
-        if (isUnlocked) {
-          tile.classList.add("available");
-          tile.classList.add("current");
-        } else {
-          tile.classList.add("locked");
-        }
+        tile.style.opacity = unlocked ? "1" : "0.5";
+        tile.style.cursor = unlocked ? "pointer" : "not-allowed";
+        if (unlocked) tile.classList.add("available");
+        else tile.classList.add("locked");
 
         tile.onclick = () => {
-          if (!isUnlocked) {
-            const currentCol = categories.indexOf(q.category);
-            const prevCol = currentCol - 1;
-            const isQuestionCompleted = (question) => question.answered || question.revealed;
-            
-            if (q.points === 100) {
-              // For first question in a category
-              if (prevCol >= 0) {
-                const isPrevColComplete = questions.filter(
-                  qq => qq.category === categories[prevCol]
-                ).every(isQuestionCompleted);
-                
-                if (!isPrevColComplete) {
-                  alert(`⚠️ Answer or reveal all questions in "${categories[prevCol]}" first!`);
-                } else {
-                  // If some earlier category is incomplete
-                  for (let col = 0; col < prevCol; col++) {
-                    const isComplete = questions.filter(
-                      qq => qq.category === categories[col]
-                    ).every(isQuestionCompleted);
-                    if (!isComplete) {
-                      alert(`⚠️ Answer or reveal all questions in "${categories[col]}" first!`);
-                      return;
-                    }
-                  }
-                }
-              }
-            } else {
-              // For other questions in the category
-              alert("⚠️ Answer or reveal previous questions in this category first!");
-            }
-            return;
-          }
+          if (!unlocked) return alert("⚠️ Complete previous questions first!");
           openQuestion(questions.indexOf(q));
         };
       }
@@ -232,28 +127,28 @@ function buildBoard() {
   }
 }
 
-// ------------------------
+// ========================
 // Open Question
-// ------------------------
+// ========================
 function openQuestion(index) {
   const q = questions[index];
-
   currentIndex = index;
+
   questionText.innerText = q.q;
   feedback.innerText = "";
-  answerArea.style.display = "none";
   choicesDiv.innerHTML = "";
 
   q.options.forEach((opt, idx) => {
     const label = document.createElement("label");
     const radio = document.createElement("input");
     radio.type = "radio";
-    radio.name = "answer";
+    radio.name = "modal-answer";
     radio.value = opt;
     if (idx === 0) radio.checked = true;
     label.appendChild(radio);
     label.appendChild(document.createTextNode(opt));
     choicesDiv.appendChild(label);
+    choicesDiv.appendChild(document.createElement("br"));
   });
 
   questionScreen.style.display = "flex";
@@ -262,12 +157,11 @@ function openQuestion(index) {
   revealBtn.disabled = false;
   giveAnswerBtn.disabled = false;
   exitBtn.disabled = false;
-  submitAnswerBtn.disabled = false;
 }
 
-// ------------------------
-// Modal & Scoring
-// ------------------------
+// ========================
+// Reveal & Answer
+// ========================
 function revealAnswer() {
   const q = questions[currentIndex];
   modalMsg.innerHTML = `<strong>Q:</strong> ${q.q}`;
@@ -277,16 +171,8 @@ function revealAnswer() {
   q.revealed = true;
 
   modal.dataset.action = "reveal";
-
-  if (isLastQuestion(currentIndex)) {
-    modalNext.style.display = "none";
-    modalExit.style.display = "inline-block";
-  } else {
-    modalNext.style.display = "inline-block";
-    modalExit.style.display = "inline-block";
-    modalNext.innerText = "Next Question";
-  }
-
+  modalNext.style.display = isLastQuestion(currentIndex) ? "none" : "inline-block";
+  modalExit.style.display = "inline-block";
   openModal();
   updateScore(0);
 }
@@ -314,55 +200,51 @@ function giveAnswer() {
 
   modalChoices.style.display = "block";
   modalFeedback.style.display = "block";
-
-  modalNext.style.display = "inline-block";
-  modalExit.style.display = isLastQuestion(currentIndex) ? "none" : "inline-block";
   modalNext.innerText = "Submit Answer";
-
+  modalExit.style.display = isLastQuestion(currentIndex) ? "none" : "inline-block";
   openModal();
 }
 
-// ------------------------
-// Modal & Score Helpers
-// ------------------------
+// ========================
+// Modal helpers
+// ========================
 function openModal() { modal.style.display = "flex"; }
 function closeModal() {
   modal.style.display = "none";
-  modalFeedback.innerText = "";
   modalChoices.innerHTML = "";
+  modalFeedback.innerText = "";
   delete modal.dataset.action;
 }
-function updateScore(points) { score += points; scoreDiv.innerText = `Score: ${score}`; }
+function updateScore(points) {
+  score += points;
+  scoreDiv.innerText = `Score: ${score}`;
+}
 
-// ------------------------
+// ========================
 // Navigation
-// ------------------------
+// ========================
 function continueToNextQuestion() {
   const currentQ = questions[currentIndex];
-
-  // Use shared helper to check completion (answered OR revealed)
-  if (!isQuestionCompleted(currentQ)) {
-    alert("⚠️ Please answer or reveal the current question before moving to the next one!");
+  if (!isCompleted(currentQ)) {
+    alert("⚠️ Answer or reveal current question first!");
     return;
   }
 
-  const currentCatIndex = categories.indexOf(currentQ.category);
-  const currentRow = currentQ.points / 100;
+  // Try next question in current column
+  const colQuestions = questions
+    .filter(q => q.category === currentQ.category)
+    .sort((a, b) => a.points - b.points);
+  const nextInCol = colQuestions.find(q => !isCompleted(q));
+  if (nextInCol && canOpenQuestion(nextInCol)) return openQuestion(questions.indexOf(nextInCol));
 
-  for (let i = currentRow + 1; i <= 5; i++) {
-    const nextQ = questions.find(q =>
-      q.category === currentQ.category && q.points === i * 100 && !isQuestionCompleted(q)
-    );
-    if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
-  }
-
-  for (let cat = currentCatIndex + 1; cat < categories.length; cat++) {
-    for (let row = 1; row <= 5; row++) {
-      const nextQ = questions.find(q =>
-        q.category === categories[cat] && q.points === row * 100 && !isQuestionCompleted(q)
-      );
-      if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
-    }
+  // Otherwise, go to next column
+  const colIndex = categories.indexOf(currentQ.category);
+  for (let i = colIndex + 1; i < categories.length; i++) {
+    const catQuestions = questions
+      .filter(q => q.category === categories[i])
+      .sort((a, b) => a.points - b.points);
+    const nextUncompleted = catQuestions.find(q => !isCompleted(q));
+    if (nextUncompleted && canOpenQuestion(nextUncompleted)) return openQuestion(questions.indexOf(nextUncompleted));
   }
 
   alert("No more uncompleted questions!");
@@ -375,18 +257,12 @@ function exitToBoard() {
   buildBoard();
 }
 
-// ------------------------
+// ========================
 // Modal Buttons
-// ------------------------
+// ========================
 modalNext.onclick = () => {
   const q = questions[currentIndex];
   const action = modal.dataset.action;
-
-  // In reveal mode, enable next only if the answer has been revealed
-  if (action === "reveal" && !q.revealed) {
-    alert("⚠️ Please wait for the answer to be revealed!");
-    return;
-  }
 
   if (action === "answer" && !answerSubmitted) {
     const selected = document.querySelector('input[name="modal-answer"]:checked');
@@ -414,7 +290,7 @@ modalNext.onclick = () => {
 
   } else {
     closeModal();
-    isLastQuestion(currentIndex) ? exitToBoard() : continueToNextQuestion();
+    continueToNextQuestion();
   }
 };
 
@@ -423,7 +299,18 @@ giveAnswerBtn.addEventListener("click", giveAnswer);
 exitBtn.addEventListener("click", exitToBoard);
 modalExit.addEventListener("click", () => { closeModal(); exitToBoard(); });
 
-// ------------------------
+// ========================
 // Initialize
-// ------------------------
+// ========================
+async function loadQuestions() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/questions`, { mode: "cors" });
+    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+    questions = await res.json();
+    buildBoard();
+  } catch (err) {
+    console.error("Failed to load questions:", err);
+    alert("Error loading questions from server. Check backend.");
+  }
+}
 loadQuestions();
