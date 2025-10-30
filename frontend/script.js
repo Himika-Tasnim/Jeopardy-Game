@@ -39,10 +39,10 @@ const modalFeedback = document.getElementById("modal-feedback");
 const modalExit = document.getElementById("modal-exit");
 const modalNext = document.getElementById("modal-next");
 
-// ✅ Fetch questions from backend API
+// ✅ Fetch questions from deployed backend API
 async function loadQuestions() {
   try {
-    const res = await fetch("http://localhost:5000/api/questions"); // change to your deployed URL later
+    const res = await fetch("https://jeopardy-game-lnje.onrender.com/api/questions");
     questions = await res.json();
     buildBoard();
   } catch (err) {
