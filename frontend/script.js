@@ -73,13 +73,16 @@ function canOpenQuestion(q) {
   const row = q.points / 100;
   const currentCol = categories.indexOf(q.category);
   
+  // Helper function to check if a question is completed (either answered or revealed)
+  const isQuestionCompleted = (question) => question.answered || question.revealed;
+  
   // If this is the first category (column)
   if (currentCol === 0) {
-    // Only allow if all previous questions in this category are answered
+    // Only allow if all previous questions in this category are completed
     const previousQuestions = questions.filter(
       prev => prev.category === q.category && prev.points < q.points
     );
-    return previousQuestions.every(prev => prev.answered);
+    return previousQuestions.every(isQuestionCompleted);
   }
   
   // For other categories
@@ -89,16 +92,16 @@ function canOpenQuestion(q) {
     const prevColQuestions = questions.filter(
       prev => prev.category === categories[currentCol - 1]
     );
-    const isPrevColComplete = prevColQuestions.every(prev => prev.answered);
+    const isPrevColComplete = prevColQuestions.every(isQuestionCompleted);
     
     // If previous column is complete, this 100-point question should be unlocked
     if (isPrevColComplete) {
       // Make sure all columns before the previous one are also complete
       for (let col = 0; col < currentCol - 1; col++) {
-        const allAnswered = questions.filter(prev => 
+        const allCompleted = questions.filter(prev => 
           prev.category === categories[col]
-        ).every(prev => prev.answered);
-        if (!allAnswered) return false;
+        ).every(isQuestionCompleted);
+        if (!allCompleted) return false;
       }
       return true;
     }
@@ -110,11 +113,11 @@ function canOpenQuestion(q) {
     prev => prev.category === q.category
   ).sort((a, b) => a.points - b.points);
   
-  // Find the first unanswered question in this category
-  const nextUnanswered = currentCategoryQuestions.find(prev => !prev.answered);
+  // Find the first uncompleted question in this category
+  const nextUncompleted = currentCategoryQuestions.find(prev => !isQuestionCompleted(prev));
   
-  // Only allow if this is the first unanswered question in the category
-  return nextUnanswered && nextUnanswered.id === q.id;
+  // Only allow if this is the first uncompleted question in the category
+  return nextUncompleted && nextUncompleted.id === q.id;
 }
 
 // ------------------------
@@ -129,6 +132,9 @@ function buildBoard() {
     board.appendChild(header);
   });
 
+  // Helper function to check if a question is completed (either answered or revealed)
+  const isQuestionCompleted = (question) => question.answered || question.revealed;
+
   // Find the current unlocked question (only one should be unlocked at a time)
   let unlockedQuestion = null;
   for (let col = 0; col < categories.length; col++) {
@@ -137,11 +143,11 @@ function buildBoard() {
       .filter(q => q.category === categories[col])
       .sort((a, b) => a.points - b.points);
     
-    // Find first unanswered question in this category
-    unlockedQuestion = categoryQuestions.find(q => !q.answered);
+    // Find first uncompleted question in this category
+    unlockedQuestion = categoryQuestions.find(q => !isQuestionCompleted(q));
     
-    // If all questions in this category are answered, move to next category
-    if (!unlockedQuestion && !categoryQuestions.every(q => q.answered)) {
+    // If all questions in this category are completed, move to next category
+    if (!unlockedQuestion && !categoryQuestions.every(isQuestionCompleted)) {
       break; // Stop if we find a category that's not complete
     }
   }
@@ -183,24 +189,25 @@ function buildBoard() {
           if (!isUnlocked) {
             const currentCol = categories.indexOf(q.category);
             const prevCol = currentCol - 1;
+            const isQuestionCompleted = (question) => question.answered || question.revealed;
             
             if (q.points === 100) {
               // For first question in a category
               if (prevCol >= 0) {
                 const isPrevColComplete = questions.filter(
                   qq => qq.category === categories[prevCol]
-                ).every(qq => qq.answered);
+                ).every(isQuestionCompleted);
                 
                 if (!isPrevColComplete) {
-                  alert(`⚠️ Complete all questions in "${categories[prevCol]}" first!`);
+                  alert(`⚠️ Answer or reveal all questions in "${categories[prevCol]}" first!`);
                 } else {
                   // If some earlier category is incomplete
                   for (let col = 0; col < prevCol; col++) {
                     const isComplete = questions.filter(
                       qq => qq.category === categories[col]
-                    ).every(qq => qq.answered);
+                    ).every(isQuestionCompleted);
                     if (!isComplete) {
-                      alert(`⚠️ Complete all questions in "${categories[col]}" first!`);
+                      alert(`⚠️ Answer or reveal all questions in "${categories[col]}" first!`);
                       return;
                     }
                   }
@@ -208,7 +215,7 @@ function buildBoard() {
               }
             } else {
               // For other questions in the category
-              alert("⚠️ Complete questions in order from 100 to 500!");
+              alert("⚠️ Answer or reveal previous questions in this category first!");
             }
             return;
           }
