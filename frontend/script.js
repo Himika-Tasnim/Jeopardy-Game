@@ -62,11 +62,10 @@ function canOpenQuestion(q) {
     if (!prevColQuestions.every(isCompleted)) return false;
   }
 
-  // Within column, must answer sequentially
+  // Within column, must unlock sequentially
   const currentColQuestions = questions
     .filter(qq => qq.category === q.category)
     .sort((a, b) => a.points - b.points);
-
   const firstUncompleted = currentColQuestions.find(qq => !isCompleted(qq));
   return firstUncompleted && firstUncompleted.id === q.id;
 }
@@ -81,6 +80,7 @@ function isLastQuestion(index) {
 function buildBoard() {
   board.innerHTML = "";
 
+  // Headers
   categories.forEach(cat => {
     const header = document.createElement("div");
     header.className = "tile header";
@@ -88,6 +88,7 @@ function buildBoard() {
     board.appendChild(header);
   });
 
+  // Tiles
   for (let row = 1; row <= 5; row++) {
     for (let col = 0; col < categories.length; col++) {
       const q = questions.find(q => q.id === `${col}-${row}`);
@@ -96,7 +97,7 @@ function buildBoard() {
       const tile = document.createElement("div");
       tile.className = "tile";
 
-      if (q.answered) {
+      if (isCompleted(q)) {
         tile.classList.add("disabled");
         if (q.revealed) {
           tile.innerText = "👁";
@@ -117,7 +118,7 @@ function buildBoard() {
         else tile.classList.add("locked");
 
         tile.onclick = () => {
-          if (!unlocked) return alert("⚠️ Complete previous questions first!");
+          if (!unlocked) return alert("⚠️ Complete previous column first!");
           openQuestion(questions.indexOf(q));
         };
       }
@@ -206,7 +207,7 @@ function giveAnswer() {
 }
 
 // ========================
-// Modal helpers
+// Modal & Score Helpers
 // ========================
 function openModal() { modal.style.display = "flex"; }
 function closeModal() {
@@ -223,30 +224,20 @@ function updateScore(points) {
 // ========================
 // Navigation
 // ========================
-function continueToNextQuestion() {
+function continueToNextColumn() {
   const currentQ = questions[currentIndex];
-  if (!isCompleted(currentQ)) {
-    alert("⚠️ Answer or reveal current question first!");
-    return;
-  }
 
-  // Try next question in current column
-  const colQuestions = questions
-    .filter(q => q.category === currentQ.category)
-    .sort((a, b) => a.points - b.points);
-  const nextInCol = colQuestions.find(q => !isCompleted(q));
-  if (nextInCol && canOpenQuestion(nextInCol)) return openQuestion(questions.indexOf(nextInCol));
-
-  // Otherwise, go to next column
-  const colIndex = categories.indexOf(currentQ.category);
-  for (let i = colIndex + 1; i < categories.length; i++) {
-    const catQuestions = questions
-      .filter(q => q.category === categories[i])
+  // Find next column
+  const currentColIndex = categories.indexOf(currentQ.category);
+  for (let col = currentColIndex + 1; col < categories.length; col++) {
+    const nextColQuestions = questions
+      .filter(q => q.category === categories[col])
       .sort((a, b) => a.points - b.points);
-    const nextUncompleted = catQuestions.find(q => !isCompleted(q));
-    if (nextUncompleted && canOpenQuestion(nextUncompleted)) return openQuestion(questions.indexOf(nextUncompleted));
+    const firstUncompleted = nextColQuestions.find(q => !isCompleted(q));
+    if (firstUncompleted) return openQuestion(questions.indexOf(firstUncompleted));
   }
 
+  // No more columns
   alert("No more uncompleted questions!");
   exitToBoard();
 }
@@ -290,7 +281,7 @@ modalNext.onclick = () => {
 
   } else {
     closeModal();
-    continueToNextQuestion();
+    continueToNextColumn();
   }
 };
 
