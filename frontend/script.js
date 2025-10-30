@@ -1,7 +1,5 @@
-// ✅ script.js
-
 // ------------------------
-// Backend URL
+// Backend URL (Render)
 // ------------------------
 const BACKEND_URL = "https://jeopardy-game-lnje.onrender.com";
 
@@ -50,11 +48,11 @@ const modalExit = document.getElementById("modal-exit");
 const modalNext = document.getElementById("modal-next");
 
 // ------------------------
-// Fetch questions
+// Fetch questions from backend
 // ------------------------
 async function loadQuestions() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/questions`);
+    const res = await fetch(`${BACKEND_URL}/api/questions`, { method: "GET", mode: "cors" });
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     questions = await res.json();
     buildBoard();
@@ -230,22 +228,21 @@ function giveAnswer() {
   openModal();
 }
 
-function openModal() {
-  modal.style.display = "flex";
-}
-
+// ------------------------
+// Modal & Score Helpers
+// ------------------------
+function openModal() { modal.style.display = "flex"; }
 function closeModal() {
   modal.style.display = "none";
   modalFeedback.innerText = "";
   modalChoices.innerHTML = "";
   delete modal.dataset.action;
 }
+function updateScore(points) { score += points; scoreDiv.innerText = `Score: ${score}`; }
 
-function updateScore(pointsToAdd) {
-  score += pointsToAdd;
-  scoreDiv.innerText = `Score: ${score}`;
-}
-
+// ------------------------
+// Navigation
+// ------------------------
 function continueToNextQuestion() {
   const currentQ = questions[currentIndex];
   const currentCatIndex = categories.indexOf(currentQ.category);
@@ -316,12 +313,8 @@ modalNext.onclick = () => {
 
 revealBtn.addEventListener("click", revealAnswer);
 giveAnswerBtn.addEventListener("click", giveAnswer);
-submitAnswerBtn.addEventListener("click", () => {});
 exitBtn.addEventListener("click", exitToBoard);
-modalExit.addEventListener("click", () => {
-  closeModal();
-  exitToBoard();
-});
+modalExit.addEventListener("click", () => { closeModal(); exitToBoard(); });
 
 // ------------------------
 // Initialize
