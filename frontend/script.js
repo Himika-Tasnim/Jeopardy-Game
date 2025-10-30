@@ -1,6 +1,13 @@
 // ✅ script.js
 
-// Define categories (these stay in frontend)
+// ------------------------
+// Backend URL
+// ------------------------
+const BACKEND_URL = "https://jeopardy-game-lnje.onrender.com";
+
+// ------------------------
+// Categories
+// ------------------------
 const categories = [
   "Market Systems & Livelihood Goals",
   "Stakeholder & Ecosystem Mapping",
@@ -12,14 +19,17 @@ const categories = [
   "Monitoring & Adaptive Management"
 ];
 
-// Questions will be fetched from backend
+// ------------------------
+// Game state
+// ------------------------
 let questions = [];
-
 let currentIndex = null;
 let score = 0;
 let answerSubmitted = false;
 
+// ------------------------
 // DOM elements
+// ------------------------
 const board = document.getElementById("game-board");
 const questionScreen = document.getElementById("question-screen");
 const questionText = document.getElementById("question-text");
@@ -39,10 +49,13 @@ const modalFeedback = document.getElementById("modal-feedback");
 const modalExit = document.getElementById("modal-exit");
 const modalNext = document.getElementById("modal-next");
 
-// ✅ Fetch questions from deployed backend API
+// ------------------------
+// Fetch questions
+// ------------------------
 async function loadQuestions() {
   try {
-    const res = await fetch("https://jeopardy-game-lnje.onrender.com/api/questions");
+    const res = await fetch(`${BACKEND_URL}/api/questions`);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     questions = await res.json();
     buildBoard();
   } catch (err) {
@@ -51,16 +64,17 @@ async function loadQuestions() {
   }
 }
 
+// ------------------------
+// Helpers
+// ------------------------
 function isLastQuestion(index) {
   return questions.every((q, i) => i === index || q.answered);
 }
 
-// ✅ Helper to enforce unlock rules
 function canOpenQuestion(q) {
   const row = q.points / 100;
   const currentCol = categories.indexOf(q.category);
 
-  // Rule 1: Must complete previous row in same category
   if (row > 1) {
     const prevQ = questions.find(
       prev => prev.category === q.category && prev.points === (row - 1) * 100
@@ -68,7 +82,6 @@ function canOpenQuestion(q) {
     if (prevQ && !prevQ.answered) return false;
   }
 
-  // Rule 2: Must complete all previous categories
   for (let col = 0; col < currentCol; col++) {
     const unfinished = questions.some(
       prev => prev.category === categories[col] && !prev.answered
@@ -79,6 +92,9 @@ function canOpenQuestion(q) {
   return true;
 }
 
+// ------------------------
+// Build Board
+// ------------------------
 function buildBoard() {
   board.innerHTML = "";
   categories.forEach(cat => {
@@ -124,13 +140,11 @@ function buildBoard() {
   }
 }
 
+// ------------------------
+// Open Question
+// ------------------------
 function openQuestion(index) {
   const q = questions[index];
-
-  if (!canOpenQuestion(q)) {
-    alert("⚠️ Please complete the previous questions first.");
-    return;
-  }
 
   currentIndex = index;
   questionText.innerText = q.q;
@@ -159,6 +173,9 @@ function openQuestion(index) {
   submitAnswerBtn.disabled = false;
 }
 
+// ------------------------
+// Modal & Scoring
+// ------------------------
 function revealAnswer() {
   const q = questions[currentIndex];
   modalMsg.innerHTML = `<strong>Q:</strong> ${q.q}`;
@@ -234,25 +251,19 @@ function continueToNextQuestion() {
   const currentCatIndex = categories.indexOf(currentQ.category);
   const currentRow = currentQ.points / 100;
 
-  // next in same category
   for (let i = currentRow + 1; i <= 5; i++) {
     const nextQ = questions.find(q =>
       q.category === currentQ.category && q.points === i * 100 && !q.answered
     );
-    if (nextQ && canOpenQuestion(nextQ)) {
-      return openQuestion(questions.indexOf(nextQ));
-    }
+    if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
   }
 
-  // otherwise next category
   for (let cat = currentCatIndex + 1; cat < categories.length; cat++) {
     for (let row = 1; row <= 5; row++) {
       const nextQ = questions.find(q =>
         q.category === categories[cat] && q.points === row * 100 && !q.answered
       );
-      if (nextQ && canOpenQuestion(nextQ)) {
-        return openQuestion(questions.indexOf(nextQ));
-      }
+      if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
     }
   }
 
@@ -266,7 +277,9 @@ function exitToBoard() {
   buildBoard();
 }
 
-// Modal button logic
+// ------------------------
+// Modal Buttons
+// ------------------------
 modalNext.onclick = () => {
   const q = questions[currentIndex];
   const action = modal.dataset.action;
@@ -310,5 +323,7 @@ modalExit.addEventListener("click", () => {
   exitToBoard();
 });
 
-// ✅ Load questions on page load
+// ------------------------
+// Initialize
+// ------------------------
 loadQuestions();
