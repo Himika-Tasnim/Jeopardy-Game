@@ -1,17 +1,7 @@
 // backend/server.js
 import express from "express";
 import cors from "cors";
-async function fetchQuestions() {
-  const res = await fetch("https://jeopardy-backend.onrender.com/api/questions");
-  return await res.json();
-}
-
-// Example usage:
-fetchQuestions().then(data => {
-  console.log(data);
-  // Use data to build your board
-});
-
+import questions from "./questionData.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
