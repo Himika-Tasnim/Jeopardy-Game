@@ -73,35 +73,35 @@ function canOpenQuestion(q) {
   const row = q.points / 100;
   const currentCol = categories.indexOf(q.category);
   
-  // If not first row, check if previous question in same category is completed
-  if (row > 1) {
-    const prevQ = questions.find(
-      prev => prev.category === q.category && prev.points === (row - 1) * 100
+  // If this is the first category (column)
+  if (currentCol === 0) {
+    // Only allow if all previous questions in this category are answered
+    const previousQuestions = questions.filter(
+      prev => prev.category === q.category && prev.points < q.points
     );
-    if (!prevQ || !prevQ.answered) return false;
+    return previousQuestions.every(prev => prev.answered);
   }
-
-  // If not first column, all questions in previous columns must be completed
-  if (currentCol > 0) {
-    for (let col = 0; col < currentCol; col++) {
-      const allAnswered = questions.filter(prev => 
-        prev.category === categories[col]
-      ).every(prev => prev.answered);
-      
-      if (!allAnswered) return false;
-    }
-  }
-
-  // Within the current column, all previous questions must be answered
-  const currentColQuestions = questions.filter(
-    prev => prev.category === q.category && prev.points < q.points
-  );
   
-  if (!currentColQuestions.every(prev => prev.answered)) {
-    return false;
+  // For other categories
+  // 1. All previous categories must be completely finished
+  for (let col = 0; col < currentCol; col++) {
+    const allAnswered = questions.filter(prev => 
+      prev.category === categories[col]
+    ).every(prev => prev.answered);
+    
+    if (!allAnswered) return false;
   }
-
-  return true;
+  
+  // 2. In current category, must progress sequentially
+  const currentCategoryQuestions = questions.filter(
+    prev => prev.category === q.category
+  ).sort((a, b) => a.points - b.points);
+  
+  // Find the first unanswered question in this category
+  const nextUnanswered = currentCategoryQuestions.find(prev => !prev.answered);
+  
+  // Only allow if this is the first unanswered question in the category
+  return nextUnanswered && nextUnanswered.id === q.id;
 }
 
 // ------------------------
@@ -115,6 +115,23 @@ function buildBoard() {
     header.innerText = cat;
     board.appendChild(header);
   });
+
+  // Find the current unlocked question (only one should be unlocked at a time)
+  let unlockedQuestion = null;
+  for (let col = 0; col < categories.length; col++) {
+    if (unlockedQuestion) break;
+    const categoryQuestions = questions
+      .filter(q => q.category === categories[col])
+      .sort((a, b) => a.points - b.points);
+    
+    // Find first unanswered question in this category
+    unlockedQuestion = categoryQuestions.find(q => !q.answered);
+    
+    // If all questions in this category are answered, move to next category
+    if (!unlockedQuestion && !categoryQuestions.every(q => q.answered)) {
+      break; // Stop if we find a category that's not complete
+    }
+  }
 
   for (let row = 1; row <= 5; row++) {
     for (let col = 0; col < categories.length; col++) {
@@ -137,20 +154,31 @@ function buildBoard() {
           tile.style.backgroundColor = "red";
         }
       } else {
-        const isAvailable = canOpenQuestion(q);
+        const isUnlocked = unlockedQuestion && q.id === unlockedQuestion.id;
         tile.innerText = q.points;
-        tile.style.opacity = isAvailable ? "1" : "0.5";
-        tile.style.cursor = isAvailable ? "pointer" : "not-allowed";
+        tile.style.opacity = isUnlocked ? "1" : "0.5";
+        tile.style.cursor = isUnlocked ? "pointer" : "not-allowed";
         
-        if (isAvailable) {
+        if (isUnlocked) {
           tile.classList.add("available");
+          tile.classList.add("current");
         } else {
           tile.classList.add("locked");
         }
 
         tile.onclick = () => {
-          if (!isAvailable) {
-            alert("⚠️ This question is locked. Complete previous questions first!");
+          if (!isUnlocked) {
+            // Show different messages based on whether the category is available
+            const currentCol = categories.indexOf(q.category);
+            const prevCategoriesComplete = categories.slice(0, currentCol).every(cat =>
+              questions.filter(qq => qq.category === cat).every(qq => qq.answered)
+            );
+            
+            if (!prevCategoriesComplete) {
+              alert("⚠️ Complete previous categories first!");
+            } else {
+              alert("⚠️ Complete questions in order within the category!");
+            }
             return;
           }
           openQuestion(questions.indexOf(q));
