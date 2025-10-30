@@ -245,6 +245,13 @@ function updateScore(points) { score += points; scoreDiv.innerText = `Score: ${s
 // ------------------------
 function continueToNextQuestion() {
   const currentQ = questions[currentIndex];
+  
+  // Check if current question is not answered or revealed
+  if (!currentQ.answered && !currentQ.revealed) {
+    alert("⚠️ Please answer or reveal the current question before moving to the next one!");
+    return;
+  }
+
   const currentCatIndex = categories.indexOf(currentQ.category);
   const currentRow = currentQ.points / 100;
 
@@ -280,6 +287,12 @@ function exitToBoard() {
 modalNext.onclick = () => {
   const q = questions[currentIndex];
   const action = modal.dataset.action;
+
+  // In reveal mode, enable next only if the answer has been revealed
+  if (action === "reveal" && !q.revealed) {
+    alert("⚠️ Please wait for the answer to be revealed!");
+    return;
+  }
 
   if (action === "answer" && !answerSubmitted) {
     const selected = document.querySelector('input[name="modal-answer"]:checked');
