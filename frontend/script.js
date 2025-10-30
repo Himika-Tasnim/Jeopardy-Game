@@ -50,20 +50,31 @@ const modalNext = document.getElementById("modal-next");
 // ========================
 const isCompleted = q => q.answered || q.revealed;
 
+// Return the index of the first column that still has uncompleted questions.
+// This is the single "active" column that may be played. If all columns are
+// complete, returns null.
+function getActiveColumnIndex() {
+  for (let col = 0; col < categories.length; col++) {
+    const colQs = questions.filter(q => q.category === categories[col]);
+    if (colQs.some(q => !isCompleted(q))) return col;
+  }
+  return null;
+}
+
 function canOpenQuestion(q) {
   const colIndex = categories.indexOf(q.category);
 
-  // Check if previous column is fully completed
-  if (colIndex > 0) {
-    const prevColQuestions = questions.filter(q => q.category === categories[colIndex - 1]);
-    if (!prevColQuestions.every(isCompleted)) return false;
-  }
+  const active = getActiveColumnIndex();
+  // If everything's complete nothing should open
+  if (active === null) return false;
 
-  // Check if previous questions in the same column are completed (sequential unlock)
+  // Only allow questions in the active column
+  if (colIndex !== active) return false;
+
+  // Within the active column only the first uncompleted question may be opened
   const currentColQuestions = questions
     .filter(qq => qq.category === q.category)
     .sort((a, b) => a.points - b.points);
-
   const firstUncompleted = currentColQuestions.find(qq => !isCompleted(qq));
   return firstUncompleted && firstUncompleted.id === q.id;
 }
