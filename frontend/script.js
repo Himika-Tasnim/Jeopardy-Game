@@ -1,7 +1,7 @@
 // ------------------------
-// Backend URL (Vercel)
+// Backend URL
 // ------------------------
-const BACKEND_URL = "https://your-vercel-backend.vercel.app"; // <-- change to your actual Vercel URL
+const BACKEND_URL = "https://jeopardy-game-lnje.onrender.com";
 
 // ------------------------
 // Categories
@@ -48,6 +48,21 @@ const modalExit = document.getElementById("modal-exit");
 const modalNext = document.getElementById("modal-next");
 
 // ------------------------
+// Fetch questions
+// ------------------------
+async function loadQuestions() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/questions`);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    questions = await res.json();
+    buildBoard();
+  } catch (err) {
+    console.error("Failed to load questions:", err);
+    alert("Error loading questions from server. Please check your backend.");
+  }
+}
+
+// ------------------------
 // Helpers
 // ------------------------
 function isLastQuestion(index) {
@@ -58,7 +73,7 @@ function canOpenQuestion(q) {
   const row = q.points / 100;
   const currentCol = categories.indexOf(q.category);
 
-  // Rule 1: Must complete previous row in same category
+  // Must complete previous row in same column
   if (row > 1) {
     const prevQ = questions.find(
       prev => prev.category === q.category && prev.points === (row - 1) * 100
@@ -66,7 +81,7 @@ function canOpenQuestion(q) {
     if (prevQ && !prevQ.answered) return false;
   }
 
-  // Rule 2: Must complete all previous categories
+  // Must complete all questions in previous columns
   for (let col = 0; col < currentCol; col++) {
     const unfinished = questions.some(
       prev => prev.category === categories[col] && !prev.answered
@@ -82,6 +97,7 @@ function canOpenQuestion(q) {
 // ------------------------
 function buildBoard() {
   board.innerHTML = "";
+
   categories.forEach(cat => {
     const header = document.createElement("div");
     header.className = "tile header";
@@ -130,7 +146,6 @@ function buildBoard() {
 // ------------------------
 function openQuestion(index) {
   const q = questions[index];
-
   if (!canOpenQuestion(q)) {
     alert("⚠️ Please complete the previous questions first.");
     return;
@@ -152,7 +167,6 @@ function openQuestion(index) {
     label.appendChild(radio);
     label.appendChild(document.createTextNode(opt));
     choicesDiv.appendChild(label);
-    choicesDiv.appendChild(document.createElement("br"));
   });
 
   questionScreen.style.display = "flex";
@@ -165,7 +179,7 @@ function openQuestion(index) {
 }
 
 // ------------------------
-// Reveal & Answer
+// Modal & Scoring
 // ------------------------
 function revealAnswer() {
   const q = questions[currentIndex];
@@ -177,8 +191,15 @@ function revealAnswer() {
 
   modal.dataset.action = "reveal";
 
-  modalNext.style.display = isLastQuestion(currentIndex) ? "none" : "inline-block";
-  modalExit.style.display = "inline-block";
+  if (isLastQuestion(currentIndex)) {
+    modalNext.style.display = "none";
+    modalExit.style.display = "inline-block";
+  } else {
+    modalNext.style.display = "inline-block";
+    modalExit.style.display = "inline-block";
+    modalNext.innerText = "Next Question";
+  }
+
   openModal();
   updateScore(0);
 }
@@ -214,46 +235,44 @@ function giveAnswer() {
   openModal();
 }
 
-function openModal() {
-  modal.style.display = "flex";
+// ------------------------
+// Modal helpers
+// ------------------------
+function openModal() { modal.style.display = "flex"; }
+function closeModal() { 
+  modal.style.display = "none"; 
+  modalChoices.innerHTML = ""; 
+  modalFeedback.innerText = ""; 
+  delete modal.dataset.action; 
+}
+function updateScore(points) { 
+  score += points; 
+  scoreDiv.innerText = `Score: ${score}`; 
 }
 
-function closeModal() {
-  modal.style.display = "none";
-  modalFeedback.innerText = "";
-  modalChoices.innerHTML = "";
-  delete modal.dataset.action;
-}
-
-function updateScore(pointsToAdd) {
-  score += pointsToAdd;
-  scoreDiv.innerText = `Score: ${score}`;
-}
-
+// ------------------------
+// Navigation
+// ------------------------
 function continueToNextQuestion() {
   const currentQ = questions[currentIndex];
-  const currentCatIndex = categories.indexOf(currentQ.category);
+  const currentCol = categories.indexOf(currentQ.category);
   const currentRow = currentQ.points / 100;
 
-  // next in same column
+  // Next in same column
   for (let i = currentRow + 1; i <= 5; i++) {
     const nextQ = questions.find(q =>
       q.category === currentQ.category && q.points === i * 100 && !q.answered
     );
-    if (nextQ && canOpenQuestion(nextQ)) {
-      return openQuestion(questions.indexOf(nextQ));
-    }
+    if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
   }
 
-  // next column
-  for (let cat = currentCatIndex + 1; cat < categories.length; cat++) {
+  // Next column
+  for (let col = currentCol + 1; col < categories.length; col++) {
     for (let row = 1; row <= 5; row++) {
       const nextQ = questions.find(q =>
-        q.category === categories[cat] && q.points === row * 100 && !q.answered
+        q.category === categories[col] && q.points === row * 100 && !q.answered
       );
-      if (nextQ && canOpenQuestion(nextQ)) {
-        return openQuestion(questions.indexOf(nextQ));
-      }
+      if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
     }
   }
 
@@ -267,6 +286,9 @@ function exitToBoard() {
   buildBoard();
 }
 
+// ------------------------
+// Modal Buttons
+// ------------------------
 modalNext.onclick = () => {
   const q = questions[currentIndex];
   const action = modal.dataset.action;
@@ -294,7 +316,6 @@ modalNext.onclick = () => {
 
     modalNext.innerText = isLastQuestion(currentIndex) ? "Exit" : "Next Question";
     modalExit.style.display = "inline-block";
-
   } else {
     closeModal();
     isLastQuestion(currentIndex) ? exitToBoard() : continueToNextQuestion();
@@ -305,25 +326,7 @@ revealBtn.addEventListener("click", revealAnswer);
 giveAnswerBtn.addEventListener("click", giveAnswer);
 submitAnswerBtn.addEventListener("click", () => {});
 exitBtn.addEventListener("click", exitToBoard);
-modalExit.addEventListener("click", () => {
-  closeModal();
-  exitToBoard();
-});
-
-// ------------------------
-// Fetch questions from Vercel backend
-// ------------------------
-async function loadQuestions() {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/questions`);
-    if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-    questions = await res.json();
-    buildBoard();
-  } catch (err) {
-    console.error("Failed to load questions:", err);
-    alert("Error loading questions from backend. Check Vercel URL or CORS.");
-  }
-}
+modalExit.addEventListener("click", () => { closeModal(); exitToBoard(); });
 
 // ------------------------
 // Initialize
