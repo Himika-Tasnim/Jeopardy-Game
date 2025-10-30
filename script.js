@@ -23,7 +23,6 @@ const feedback = document.getElementById("feedback");
 const answerArea = document.getElementById("answer-area");
 const revealBtn = document.getElementById("reveal-answer-btn");
 const giveAnswerBtn = document.getElementById("give-answer-btn");
-const continueBtn = document.getElementById("continue-btn");
 const exitBtn = document.getElementById("exit-btn");
 const submitAnswerBtn = document.getElementById("submit-answer-btn");
 const scoreDiv = document.getElementById("score");
@@ -37,6 +36,30 @@ const modalNext = document.getElementById("modal-next");
 
 function isLastQuestion(index) {
   return questions.every((q, i) => i === index || q.answered);
+}
+
+// ✅ New helper function to enforce rules
+function canOpenQuestion(q) {
+  const row = q.points / 100;
+  const currentCol = categories.indexOf(q.category);
+
+  // Rule 1: Must complete previous row in same category
+  if (row > 1) {
+    const prevQ = questions.find(
+      prev => prev.category === q.category && prev.points === (row - 1) * 100
+    );
+    if (prevQ && !prevQ.answered) return false;
+  }
+
+  // Rule 2: Must complete all previous categories
+  for (let col = 0; col < currentCol; col++) {
+    const unfinished = questions.some(
+      prev => prev.category === categories[col] && !prev.answered
+    );
+    if (unfinished) return false;
+  }
+
+  return true;
 }
 
 function buildBoard() {
@@ -70,7 +93,13 @@ function buildBoard() {
         }
       } else {
         tile.innerText = q.points;
-        tile.onclick = () => openQuestion(questions.indexOf(q));
+        tile.onclick = () => {
+          if (!canOpenQuestion(q)) {
+            alert("⚠️ Please complete the previous questions first.");
+            return;
+          }
+          openQuestion(questions.indexOf(q));
+        };
       }
 
       board.appendChild(tile);
@@ -79,9 +108,15 @@ function buildBoard() {
 }
 
 function openQuestion(index) {
-  currentIndex = index;
   const q = questions[index];
 
+  // ✅ enforce rules here too
+  if (!canOpenQuestion(q)) {
+    alert("⚠️ Please complete the previous questions first.");
+    return;
+  }
+
+  currentIndex = index;
   questionText.innerText = q.q;
   feedback.innerText = "";
   answerArea.style.display = "none";
@@ -104,20 +139,18 @@ function openQuestion(index) {
 
   revealBtn.disabled = false;
   giveAnswerBtn.disabled = false;
-  continueBtn.disabled = true;
   exitBtn.disabled = false;
   submitAnswerBtn.disabled = false;
 }
 
 function revealAnswer() {
   const q = questions[currentIndex];
-  modalMsg.innerText = `Answer: ${q.correct}`;
+  modalMsg.innerHTML = `<strong>Q:</strong> ${q.q}`;
   modalChoices.style.display = "none";
-  modalFeedback.innerText = "";
+  modalFeedback.innerHTML = `👁 Correct Answer: ${q.correct}<br><br><strong>Explanation:</strong> ${q.explanation}`;
   q.answered = true;
   q.revealed = true;
 
-  // Set flag to indicate this is a reveal action
   modal.dataset.action = "reveal";
 
   if (isLastQuestion(currentIndex)) {
@@ -135,12 +168,11 @@ function revealAnswer() {
 
 function giveAnswer() {
   const q = questions[currentIndex];
-  modalMsg.innerText = "Choose your answer:";
+  modalMsg.innerHTML = `<strong>Q:</strong> ${q.q}`;
   modalChoices.innerHTML = "";
   modalFeedback.innerText = "";
   answerSubmitted = false;
 
-  // Set flag to indicate this is an answer submission
   modal.dataset.action = "answer";
 
   q.options.forEach(opt => {
@@ -186,19 +218,25 @@ function continueToNextQuestion() {
   const currentCatIndex = categories.indexOf(currentQ.category);
   const currentRow = currentQ.points / 100;
 
+  // look for next in same category
   for (let i = currentRow + 1; i <= 5; i++) {
     const nextQ = questions.find(q =>
       q.category === currentQ.category && q.points === i * 100 && !q.answered
     );
-    if (nextQ) return openQuestion(questions.indexOf(nextQ));
+    if (nextQ && canOpenQuestion(nextQ)) {
+      return openQuestion(questions.indexOf(nextQ));
+    }
   }
 
+  // otherwise go to next category
   for (let cat = currentCatIndex + 1; cat < categories.length; cat++) {
     for (let row = 1; row <= 5; row++) {
       const nextQ = questions.find(q =>
         q.category === categories[cat] && q.points === row * 100 && !q.answered
       );
-      if (nextQ) return openQuestion(questions.indexOf(nextQ));
+      if (nextQ && canOpenQuestion(nextQ)) {
+        return openQuestion(questions.indexOf(nextQ));
+      }
     }
   }
 
@@ -227,10 +265,10 @@ modalNext.onclick = () => {
     q.userAnswer = selected.value;
 
     if (isCorrect) {
-      modalFeedback.innerText = "✅ Correct!";
+      modalFeedback.innerHTML = `✅ Correct!<br><br><strong>Explanation:</strong> ${q.explanation}`;
       updateScore(q.points);
     } else {
-      modalFeedback.innerText = `❌ Incorrect. Correct: ${q.correct}`;
+      modalFeedback.innerHTML = `❌ Incorrect.<br>Correct Answer: ${q.correct}<br><br><strong>Explanation:</strong> ${q.explanation}`;
     }
 
     q.answered = true;
@@ -239,6 +277,7 @@ modalNext.onclick = () => {
 
     modalNext.innerText = isLastQuestion(currentIndex) ? "Exit" : "Next Question";
     modalExit.style.display = "inline-block";
+
   } else {
     closeModal();
     isLastQuestion(currentIndex) ? exitToBoard() : continueToNextQuestion();
@@ -248,7 +287,6 @@ modalNext.onclick = () => {
 revealBtn.addEventListener("click", revealAnswer);
 giveAnswerBtn.addEventListener("click", giveAnswer);
 submitAnswerBtn.addEventListener("click", () => {});
-continueBtn.addEventListener("click", continueToNextQuestion);
 exitBtn.addEventListener("click", exitToBoard);
 modalExit.addEventListener("click", () => {
   closeModal();
