@@ -53,19 +53,17 @@ const isCompleted = q => q.answered || q.revealed;
 function canOpenQuestion(q) {
   const colIndex = categories.indexOf(q.category);
 
-  // First column, first question always unlocked
-  if (colIndex === 0 && q.points === 100) return true;
-
-  // Previous column must be fully completed
+  // Check if previous column is fully completed
   if (colIndex > 0) {
     const prevColQuestions = questions.filter(q => q.category === categories[colIndex - 1]);
     if (!prevColQuestions.every(isCompleted)) return false;
   }
 
-  // Within column, must unlock sequentially
+  // Check if previous questions in the same column are completed (sequential unlock)
   const currentColQuestions = questions
     .filter(qq => qq.category === q.category)
     .sort((a, b) => a.points - b.points);
+
   const firstUncompleted = currentColQuestions.find(qq => !isCompleted(qq));
   return firstUncompleted && firstUncompleted.id === q.id;
 }
@@ -118,7 +116,7 @@ function buildBoard() {
         else tile.classList.add("locked");
 
         tile.onclick = () => {
-          if (!unlocked) return alert("⚠️ Complete previous column first!");
+          if (!unlocked) return alert("⚠️ Complete the current column first!");
           openQuestion(questions.indexOf(q));
         };
       }
@@ -225,14 +223,14 @@ function updateScore(points) {
 // Navigation
 // ========================
 function continueToNextColumn() {
-  const currentQ = questions[currentIndex];
+  const currentColIndex = categories.indexOf(questions[currentIndex].category);
 
-  // Find next column
-  const currentColIndex = categories.indexOf(currentQ.category);
+  // Check next column
   for (let col = currentColIndex + 1; col < categories.length; col++) {
     const nextColQuestions = questions
       .filter(q => q.category === categories[col])
       .sort((a, b) => a.points - b.points);
+
     const firstUncompleted = nextColQuestions.find(q => !isCompleted(q));
     if (firstUncompleted) return openQuestion(questions.indexOf(firstUncompleted));
   }
