@@ -70,28 +70,19 @@ function isLastQuestion(index) {
 }
 
 function canOpenQuestion(q) {
-  const row = q.points / 100;
-  const currentCol = categories.indexOf(q.category);
-
-  // 1️⃣ Must complete previous row in same column (for rows > 1)
-  if (row > 1) {
-    const prevQ = questions.find(
-      prev => prev.category === q.category && prev.points === (row - 1) * 100
-    );
-    if (prevQ && !prevQ.answered) return false;
-  }
-
-  // 2️⃣ For row 1, must complete all previous columns
-  if (row === 1) {
-    for (let col = 0; col < currentCol; col++) {
-      const unfinished = questions.some(
-        prev => prev.category === categories[col] && !prev.answered
+  // Find the next unanswered question in strict row/col order
+  for (let col = 0; col < categories.length; col++) {
+    for (let row = 1; row <= 5; row++) {
+      const nextQ = questions.find(
+        ques => ques.category === categories[col] && ques.points === row * 100 && !ques.answered
       );
-      if (unfinished) return false;
+      if (nextQ) {
+        // Only the first unanswered question is allowed to open
+        return nextQ.id === q.id;
+      }
     }
   }
-
-  return true;
+  return false; // All questions answered
 }
 
 
