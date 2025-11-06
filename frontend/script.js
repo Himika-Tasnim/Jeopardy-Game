@@ -258,35 +258,41 @@ function updateScore(points) {
 // ------------------------
 function continueToNextQuestion() {
   const currentQ = questions[currentIndex];
-  const currentCol = categories.indexOf(currentQ.category);
-  const currentRow = currentQ.points / 100;
+  let currentCol = categories.indexOf(currentQ.category);
+  let currentRow = currentQ.points / 100;
 
-  // Next in same column
-  for (let i = currentRow + 1; i <= 5; i++) {
-    const nextQ = questions.find(q =>
-      q.category === currentQ.category && q.points === i * 100 && !q.answered
-    );
-    if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
+  // Move to next row if possible
+  if (currentRow < 5) {
+    currentRow += 1;
+  } else {
+    // Move to next column, reset row
+    currentRow = 1;
+    currentCol += 1;
   }
 
-  // Next column
-  for (let col = currentCol + 1; col < categories.length; col++) {
-    for (let row = 1; row <= 5; row++) {
-      const nextQ = questions.find(q =>
-        q.category === categories[col] && q.points === row * 100 && !q.answered
-      );
-      if (nextQ && canOpenQuestion(nextQ)) return openQuestion(questions.indexOf(nextQ));
+  // Find next unanswered question
+  while (currentCol < categories.length) {
+    const nextQ = questions.find(q =>
+      q.category === categories[currentCol] &&
+      q.points === currentRow * 100 &&
+      !q.answered
+    );
+
+    if (nextQ) {
+      return openQuestion(questions.indexOf(nextQ));
+    }
+
+    // If not found, move to next row or column
+    if (currentRow < 5) {
+      currentRow += 1;
+    } else {
+      currentRow = 1;
+      currentCol += 1;
     }
   }
 
   alert("No more unanswered questions!");
   exitToBoard();
-}
-
-function exitToBoard() {
-  questionScreen.style.display = "none";
-  board.style.display = "grid";
-  buildBoard();
 }
 
 // ------------------------
